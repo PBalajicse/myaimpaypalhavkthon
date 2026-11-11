@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="ta">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>PayPal AI - Live Analytics Dashboard</title>
+
+    <style>
+        :root {
+            --blue: #003087;
+            --light-blue: #0070ba;
+            --background: #f0f4f8;
+            --text: #243247;
+            --muted: #64748b;
+            --border: #e2e8f0;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 24px;
+            font-family: "Segoe UI", Arial, sans-serif;
+            background: var(--background);
+            color: var(--text);
+        }
+
+        .dashboard-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+            padding: 26px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, var(--blue), var(--light-blue));
+            color: white;
+            box-shadow: 0 5px 18px rgba(0, 48, 135, 0.15);
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 1.8rem;
+        }
+
+        .header p {
+            margin: 8px 0 0;
+            opacity: 0.9;
+        }
+
+        .nav-btn,
+        .refresh-btn {
+            display: inline-block;
+            padding: 11px 17px;
+            border: 0;
+            border-radius: 7px;
+            font: inherit;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        .nav-btn {
+            background: white;
+            color: var(--blue);
+            white-space: nowrap;
+        }
+
+        .refresh-btn {
+            background: var(--blue);
+            color: white;
+        }
+
+        .refresh-btn:disabled {
+            opacity: 0.6;
+            cursor: wait;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            gap: 18px;
+            margin-top: 25px;
+        }
+
+        .stat-card {
+            padding: 23px;
+            border-radius: 12px;
+            border-left: 5px solid var(--light-blue);
+            background: white;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .stat-card h2 {
+            margin: 0;
+            font-size: 0.95rem;
+            color: var(--muted);
+        }
+
+        .stat-card p {
+            margin: 12px 0 0;
+            font-size: 1.9rem;
+            font-weight: 700;
+            overflow-wrap: anywhere;
+        }
+
+        .stat-card small {
+            display: block;
+            margin-top: 9px;
+            color: var(--muted);
+            line-height: 1.5;
+        }
+
+        .panel {
+            margin-top: 24px;
+            padding: 24px;
+            border-radius: 12px;
+            background: white;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .toolbar h2,
+        .panel h2 {
+            margin: 0;
+            color: var(--blue);
+            font-size: 1.2rem;
+        }
+
+        .muted {
+            color: var(--muted);
+            line-height: 1.6;
+        }
+
+        .notice {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #fecaca;
+            border-radius: 8px;
+            background: #fff1f2;
+            color: #9f1239;
+            overflow-wrap: anywhere;
+        }
+
+        .notice[hidden] {
+            display: none;
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+            margin-top: 18px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            padding: 13px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            vertical-align: top;
+        }
+
+        th {
+            background: #f8fafc;
+            color: #475569;
+            white-space: nowrap;
+        }
+
+        .order-id {
+            max-width: 340px;
+            font-family: monospace;
+            color: var(--light-blue);
+            overflow-wrap: anywhere;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 5px 9px;
+            border-radius: 6px;
+            background: #e2e8f0;
+            color: #334155;
+            font-size: 0.8rem;
+            overflow-wrap: anywhere;
+        }
+
+        .badge-success {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .badge-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge-danger {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .status-text {
+            font-size: 1.15rem !important;
+        }
+
+        .currency-totals {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 18px;
+        }
+
+        .currency-total {
+            padding: 12px 16px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: #f8fafc;
+        }
+
+        .empty-cell {
+            padding: 28px;
+            text-align: center;
+            color: var(--muted);
+        }
+
+        @media (max-width: 640px) {
+            body {
+                padding: 12px;
+            }
+
+            .header {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .header h1 {
+                font-size: 1.45rem;
+            }
+
+            .panel {
+                padding: 16px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+<main class="dashboard-container">
+
+    <header class="header">
+        <div>
+            <h1>PayPal AI Smart Dashboard</h1>
+            <p>Order analytics and backend synchronization</p>
+        </div>
+
+        <a href="/index.html" class="nav-btn">Back to AI Chat</a>
+    </header>
+
+    <section class="stats-grid" aria-label="Analytics summary">
+        <article class="stat-card">
+            <h2>Total Order Records</h2>
+            <p id="totalOrders">—</p>
+            <small>API வழங்கிய order records எண்ணிக்கை</small>
+        </article>
+
+        <article class="stat-card">
+            <h2>Non-offline Records</h2>
+            <p id="nonOfflineOrders">—</p>
+            <small>Offline prefix இல்லாத records; payment verification அல்ல</small>
+        </article>
+
+        <article class="stat-card">
+            <h2>Offline Tracking Records</h2>
+            <p id="offlineOrders">—</p>
+            <small>இவை உண்மையான PayPal orders அல்லது payments அல்ல</small>
+        </article>
+
+        <article class="stat-card">
+            <h2>Analytics API Sync</h2>
+            <p id="syncStatus" class="status-text">WAITING</p>
+            <small id="lastUpdated">இன்னும் successful sync நடைபெறவில்லை</small>
+        </article>
+    </section>
+
+    <div id="errorBox"
+         class="notice"
+         role="alert"
+         hidden>
+    </div>
+
+    <section class="panel">
+        <h2>Order Amount Totals by Currency</h2>
+
+        <p class="muted">
+            Offline tracking records சேர்க்கப்படவில்லை.
+            இவை order amounts மட்டுமே; collected revenue அல்லது completed
+            payments என்று பொருள் இல்லை.
+        </p>
+		<canvas id="currencyChart" height="220"></canvas>
+        <div id="currencyTotals" class="currency-totals">
+            <span class="muted">Data loading...</span>
+        </div>
+    </section>
+
+    <section class="panel">
+        <div class="toolbar">
+            <h2>Transaction Records</h2>
+
+            <button id="refreshButton"
+                    class="refresh-btn"
+                    type="button">
+                Refresh Now
+            </button>
+        </div>
+
+        <p class="muted">
+            Endpoint: <code>/api/analytics/orders</code><br>
+            ஒவ்வொரு request முடிந்த பிறகும் 5 seconds கழித்து refresh ஆகும்.
+            API failure ஏற்பட்டால் கடைசியாக கிடைத்த data காட்டப்படும்.
+        </p>
+
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Order / Tracking ID</th>
+                    <th>Amount</th>
+                    <th>Currency</th>
+                    <th>Recorded Status</th>
+                    <th>Record Type</th>
+                </tr>
+                </thead>
+
+                <tbody id="transactionBody">
+                <tr>
+                    <td colspan="6" class="empty-cell">
+                        Backend data loading...
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+</main>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    "use strict";
+
+    const ORDERS_API = "/api/analytics/orders";
+    const REFRESH_DELAY_MS = 5000;
+    const REQUEST_TIMEOUT_MS = 10000;
+
+    let requestInProgress = false;
+    let refreshTimer = null;
+
+    const elements = {
+        totalOrders: document.getElementById("totalOrders"),
+        nonOfflineOrders: document.getElementById("nonOfflineOrders"),
+        offlineOrders: document.getElementById("offlineOrders"),
+        syncStatus: document.getElementById("syncStatus"),
+        lastUpdated: document.getElementById("lastUpdated"),
+        currencyTotals: document.getElementById("currencyTotals"),
+        transactionBody: document.getElementById("transactionBody"),
+        errorBox: document.getElementById("errorBox"),
+        refreshButton: document.getElementById("refreshButton")
+    };
+
+    function textValue(value, fallback = "—") {
+        if (value === null || value === undefined || value === "") {
+            return fallback;
+        }
+
+        return String(value);
+    }
+
+    function isOfflineRecord(order) {
+        const orderId = textValue(order.paypalOrderId, "");
+        const status = textValue(order.status, "").toUpperCase();
+
+        return orderId.startsWith("OFFLINE-SANDBOX-")
+            || status.includes("OFFLINE");
+    }
+
+    function normalizeCurrency(value) {
+        return textValue(value, "UNKNOWN").trim().toUpperCase();
+    }
+
+    function numericAmount(value) {
+        if (typeof value !== "string" && typeof value !== "number") {
+            return null;
+        }
+
+        if (typeof value === "string" && value.trim() === "") {
+            return null;
+        }
+
+        const amount = Number(value);
+
+        return Number.isFinite(amount) && amount >= 0 ? amount : null;
+    }
+
+    function formatAmount(value) {
+        const amount = numericAmount(value);
+
+        if (amount === null) {
+            return textValue(value);
+        }
+
+        return new Intl.NumberFormat("en-US", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 6
+        }).format(amount);
+    }
+
+    function appendCell(row, value, className = "") {
+        const cell = document.createElement("td");
+        cell.textContent = textValue(value);
+
+        if (className) {
+            cell.className = className;
+        }
+
+        row.appendChild(cell);
+        return cell;
+    }
+
+    function statusClass(status) {
+        const normalizedStatus = textValue(status, "").toUpperCase();
+
+        if (normalizedStatus.includes("OFFLINE")) {
+            return "badge badge-warning";
+        }
+
+        if (["COMPLETED", "CAPTURED"].includes(normalizedStatus)) {
+            return "badge badge-success";
+        }
+
+        if (["FAILED", "DECLINED", "DENIED", "CANCELLED", "VOIDED"]
+                .includes(normalizedStatus)) {
+            return "badge badge-danger";
+        }
+
+        return "badge";
+    }
+
+    function renderOrders(orders) {
+        const fragment = document.createDocumentFragment();
+
+        if (orders.length === 0) {
+            const row = document.createElement("tr");
+            const cell = appendCell(
+                row,
+                "API காலியான order list கொடுத்துள்ளது. "
+                    + "Database save/read flow-ஐ check செய்யவும்.",
+                "empty-cell"
+            );
+
+            cell.colSpan = 6;
+            fragment.appendChild(row);
+        } else {
+            for (const order of orders) {
+                const row = document.createElement("tr");
+
+                appendCell(row, order.id);
+                appendCell(row, order.paypalOrderId, "order-id");
+                appendCell(row, formatAmount(order.amount));
+                appendCell(row, normalizeCurrency(order.currency));
+
+                const statusCell = document.createElement("td");
+                const badge = document.createElement("span");
+
+                badge.className = statusClass(order.status);
+                badge.textContent = textValue(order.status, "UNKNOWN");
+
+                statusCell.appendChild(badge);
+                row.appendChild(statusCell);
+
+                appendCell(
+                    row,
+                    isOfflineRecord(order)
+                        ? "LOCAL OFFLINE TRACKING"
+                        : "NON-OFFLINE RECORD"
+                );
+
+                fragment.appendChild(row);
+            }
+        }
+
+        elements.transactionBody.replaceChildren(fragment);
+    }
+	function renderCurrencyChart(orders) {
+	    const canvas = document.getElementById("currencyChart");
+
+	    if (!canvas || !window.Chart) {
+	        return;
+	    }
+
+	    const totals = {};
+
+	    orders.forEach(function (order) {
+	        const currency = order.currency || "USD";
+	        const amount = Number(order.amount) || 0;
+
+	        totals[currency] = (totals[currency] || 0) + amount;
+	    });
+
+	    const labels = Object.keys(totals);
+	    const values = labels.map(function (currency) {
+	        return totals[currency];
+	    });
+
+	    if (window.currencyChartInstance) {
+	        window.currencyChartInstance.destroy();
+	    }
+
+	    window.currencyChartInstance = new Chart(canvas, {
+	        type: "bar",
+	        data: {
+	            labels: labels,
+	            datasets: [{
+	                label: "Order Amount",
+	                data: values,
+	                backgroundColor: "rgba(0, 194, 255, .65)",
+	                borderColor: "#00c2ff",
+	                borderWidth: 1,
+	                borderRadius: 8
+	            }]
+	        },
+	        options: {
+	            responsive: true,
+	            plugins: {
+	                legend: {
+	                    display: false
+	                }
+	            },
+	            scales: {
+	                x: {
+	                    ticks: {
+	                        color: "#9fb3c8"
+	                    },
+	                    grid: {
+	                        color: "rgba(255, 255, 255, .08)"
+	                    }
+	                },
+	                y: {
+	                    beginAtZero: true,
+	                    ticks: {
+	                        color: "#9fb3c8"
+	                    },
+	                    grid: {
+	                        color: "rgba(255, 255, 255, .08)"
+	                    }
+	                }
+	            }
+	        }
+	    });
+	}
+    function renderSummary(orders) {
+        const offlineCount = orders.filter(isOfflineRecord).length;
+
+        elements.totalOrders.textContent = String(orders.length);
+        elements.offlineOrders.textContent = String(offlineCount);
+        elements.nonOfflineOrders.textContent =
+            String(orders.length - offlineCount);
+
+        const totals = new Map();
+        let skippedAmounts = 0;
+
+        for (const order of orders) {
+            if (isOfflineRecord(order)) {
+                continue;
+            }
+
+            const amount = numericAmount(order.amount);
+            const currency = normalizeCurrency(order.currency);
+
+            if (amount === null || currency === "UNKNOWN") {
+                skippedAmounts++;
+                continue;
+            }
+
+            totals.set(currency, (totals.get(currency) || 0) + amount);
+        }
+
+        const fragment = document.createDocumentFragment();
+
+        if (totals.size === 0) {
+            const message = document.createElement("span");
+            message.className = "muted";
+            message.textContent =
+                "Total கணக்கிடக்கூடிய non-offline order amounts இல்லை.";
+
+            fragment.appendChild(message);
+        } else {
+            const sortedTotals = [...totals.entries()]
+                .sort(([currencyA], [currencyB]) =>
+                    currencyA.localeCompare(currencyB)
+                );
+
+            for (const [currency, amount] of sortedTotals) {
+                const item = document.createElement("div");
+                item.className = "currency-total";
+                item.textContent = currency + " " + formatAmount(amount);
+                fragment.appendChild(item);
+            }
+        }
+
+        if (skippedAmounts > 0) {
+            const warning = document.createElement("p");
+            warning.className = "muted";
+            warning.textContent =
+                skippedAmounts + " records-ல் amount/currency சரியாக இல்லை; "
+                + "totals-ல் சேர்க்கப்படவில்லை.";
+
+            fragment.appendChild(warning);
+        }
+
+        elements.currencyTotals.replaceChildren(fragment);
+    }
+
+    function showError(message) {
+        elements.syncStatus.textContent = "SYNC FAILED";
+        elements.syncStatus.style.color = "#b91c1c";
+        elements.errorBox.textContent = message;
+        elements.errorBox.hidden = false;
+    }
+
+    function showSuccess() {
+        elements.syncStatus.textContent = "SYNC OK";
+        elements.syncStatus.style.color = "#15803d";
+        elements.errorBox.textContent = "";
+        elements.errorBox.hidden = true;
+
+        elements.lastUpdated.textContent =
+            "Last successful sync: "
+            + new Date().toLocaleString("en-IN");
+    }
+
+    function validateOrdersResponse(data) {
+        if (!Array.isArray(data)) {
+            throw new Error(
+                "Response format mismatch: JSON array தேவை. "
+                + "Backend controller response-ஐ check செய்யவும்."
+            );
+        }
+
+        const invalidRecord = data.some(order =>
+            order === null
+            || typeof order !== "object"
+            || Array.isArray(order)
+        );
+
+        if (invalidRecord) {
+            throw new Error(
+                "Order list-ல் invalid records உள்ளன. "
+                + "ஒவ்வொரு record-மும் JSON object ஆக இருக்க வேண்டும்."
+            );
+        }
+
+        return data;
+    }
+
+    async function loadAnalyticsData() {
+        if (requestInProgress) {
+            return;
+        }
+
+        clearTimeout(refreshTimer);
+
+        requestInProgress = true;
+        elements.refreshButton.disabled = true;
+
+        const controller = new AbortController();
+        const timeout = setTimeout(
+            () => controller.abort(),
+            REQUEST_TIMEOUT_MS
+        );
+
+        try {
+            const response = await fetch(ORDERS_API, {
+                method: "GET",
+				headers: {
+				    "Accept": "application/json",
+				    "Authorization": "Bearer " + localStorage.getItem("jwtToken")
+				},
+                credentials: "same-origin",
+                cache: "no-store",
+                signal: controller.signal
+            });
+
+            if (response.redirected) {
+                throw new Error(
+                    "API request redirect ஆகியுள்ளது. "
+                    + "Login/session மற்றும் security configuration பார்க்கவும்."
+                );
+            }
+
+            if (!response.ok) {
+                if (response.status === 401 || response.status === 403) {
+                    throw new Error(
+                        "HTTP " + response.status
+                        + ": Login அல்லது API permission தேவை."
+                    );
+                }
+
+                if (response.status === 404) {
+                    throw new Error(
+                        "HTTP 404: /api/analytics/orders endpoint கிடைக்கவில்லை. "
+                        + "Controller mapping-ஐ check செய்யவும்."
+                    );
+                }
+
+                throw new Error(
+                    "Analytics API failed: HTTP " + response.status
+                    + ". Backend console log-ஐ check செய்யவும்."
+                );
+            }
+
+            const contentType =
+                response.headers.get("content-type") || "";
+
+            if (!contentType.toLowerCase().includes("json")) {
+                throw new Error(
+                    "JSON response கிடைக்கவில்லை. "
+                    + "Login HTML அல்லது வேறு page கிடைத்திருக்கலாம்."
+                );
+            }
+
+            const orders = validateOrdersResponse(
+                await response.json()
+            );
+
+            renderOrders(orders);
+            renderSummary(orders);
+			renderCurrencyChart(orders);
+            showSuccess();
+
+        } catch (error) {
+            const message = error.name === "AbortError"
+                ? "API timeout: 10 seconds-க்குள் response வரவில்லை."
+                : error.message || "Unexpected dashboard error.";
+
+            showError(message);
+            console.error("Dashboard synchronization failed:", error);
+
+        } finally {
+            clearTimeout(timeout);
+            requestInProgress = false;
+            elements.refreshButton.disabled = false;
+
+            refreshTimer = setTimeout(
+                loadAnalyticsData,
+                REFRESH_DELAY_MS
+            );
+        }
+    }
+
+    elements.refreshButton.addEventListener(
+        "click",
+        loadAnalyticsData
+    );
+
+    loadAnalyticsData();
+</script>
+</body>
+</html>

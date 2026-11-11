@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="ta">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PayPal AI Chat</title>
+<style>
+    * {
+        box-sizing: border-box;
+    }
+
+    body {
+        margin: 0;
+        padding: 24px;
+        font-family: "Segoe UI", Arial, sans-serif;
+        background:
+            radial-gradient(circle at 15% 15%, rgba(0, 112, 186, .28), transparent 45%),
+            radial-gradient(circle at 85% 10%, rgba(0, 200, 255, .16), transparent 40%),
+            linear-gradient(160deg, #050b18, #0b1626 55%, #071021);
+        color: #e6edf7;
+        min-height: 100vh;
+    }
+
+    .container {
+        max-width: 780px;
+        margin: auto;
+    }
+
+    .header {
+        background: linear-gradient(135deg, rgba(0, 48, 135, .85), rgba(0, 112, 186, .65));
+        border: 1px solid rgba(255, 255, 255, .14);
+        color: white;
+        padding: 26px;
+        border-radius: 18px;
+        margin-bottom: 22px;
+        box-shadow: 0 18px 45px rgba(0, 0, 0, .35);
+        backdrop-filter: blur(14px);
+    }
+
+    .header h1 {
+        margin: 0;
+        font-size: 28px;
+        letter-spacing: -.4px;
+    }
+
+    .header p {
+        margin: 8px 0 0;
+        opacity: .82;
+    }
+
+    .card {
+        background: rgba(255, 255, 255, .07);
+        border: 1px solid rgba(255, 255, 255, .13);
+        border-radius: 18px;
+        padding: 25px;
+        box-shadow: 0 18px 45px rgba(0, 0, 0, .32);
+        backdrop-filter: blur(16px);
+    }
+
+    label {
+        display: block;
+        font-size: 14px;
+        color: #9fb3c8;
+        margin-bottom: 7px;
+    }
+
+    textarea {
+        width: 100%;
+        min-height: 120px;
+        padding: 13px;
+        border: 1px solid rgba(255, 255, 255, .18);
+        border-radius: 11px;
+        font: inherit;
+        resize: vertical;
+        margin-bottom: 15px;
+        background: rgba(255, 255, 255, .06);
+        color: #eaf2ff;
+        outline: none;
+    }
+
+    textarea:focus {
+        border-color: #38bdf8;
+        box-shadow: 0 0 0 3px rgba(56, 189, 248, .18);
+    }
+
+    button {
+        width: 100%;
+        padding: 13px;
+        border: 0;
+        border-radius: 11px;
+        background: linear-gradient(135deg, #0070ba, #00c2ff);
+        color: white;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: 0 10px 25px rgba(0, 112, 186, .35);
+        transition: transform .15s ease, box-shadow .15s ease;
+    }
+
+    button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 14px 30px rgba(0, 194, 255, .35);
+    }
+
+    button:disabled {
+        opacity: .6;
+        cursor: wait;
+        transform: none;
+    }
+
+    .output {
+        margin-top: 18px;
+        padding: 16px;
+        min-height: 120px;
+        border: 1px solid rgba(255, 255, 255, .13);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, .05);
+        white-space: pre-wrap;
+        word-break: break-word;
+        color: #dbeafe;
+    }
+
+    .success {
+        color: #4ade80;
+    }
+
+    .error {
+        color: #f87171;
+    }
+
+    .link {
+        display: inline-block;
+        margin-top: 18px;
+        color: #7dd3fc;
+        font-weight: 600;
+        text-decoration: none;
+    }
+
+    .link:hover {
+        color: #bae6fd;
+    }
+</style>
+</head>
+
+<body>
+<main class="container">
+
+    <header class="header">
+        <h1>PayPal AI Chat</h1>
+        <p>
+            AI instruction கொடுங்க. Amount மற்றும் currency-ஐ பார்த்து
+            PayPal order create ஆகும்.
+        </p>
+    </header>
+
+    <section class="card">
+        <label for="prompt">AI Payment Instruction</label>
+
+        <textarea id="prompt"
+                  placeholder="Example: Create a PayPal order for 25 USD"></textarea>
+
+        <button id="sendButton" type="button">
+            Send to AI
+        </button>
+
+        <div id="output" class="output">
+            Login செய்து AI instruction அனுப்பவும்.
+        </div>
+
+        <a class="link" href="/dashboard.html">
+            Go to Analytics Dashboard
+        </a>
+    </section>
+
+</main>
+
+<script>
+    "use strict";
+
+    const API_URL = "/api/ai/chat";
+    const TOKEN_KEY = "jwtToken";
+
+    const promptBox = document.getElementById("prompt");
+    const outputBox = document.getElementById("output");
+    const sendButton = document.getElementById("sendButton");
+
+    function showMessage(message, isError) {
+        outputBox.className = "output " + (isError ? "error" : "success");
+        outputBox.textContent = message;
+    }
+
+    async function sendAiRequest() {
+        const prompt = promptBox.value.trim();
+        const token = localStorage.getItem(TOKEN_KEY);
+
+        if (!prompt) {
+            showMessage("AI instruction உள்ளிடவும்.", true);
+            return;
+        }
+
+        if (!token) {
+            showMessage(
+                "JWT token இல்லை. முதலில் login செய்யவும்.",
+                true
+            );
+            return;
+        }
+
+        sendButton.disabled = true;
+
+        const steps = [
+            "🧠 AI Understanding your payment request...",
+            "🔐 Running security and validation checks...",
+            "💳 Connecting to PayPal payment layer...",
+            "💾 Saving order and preparing response..."
+        ];
+
+        let stepIndex = 0;
+        let dots = 0;
+
+        const progressTimer = setInterval(() => {
+            dots = (dots + 1) % 4;
+            const dotText = ".".repeat(dots || 1);
+            outputBox.className = "output success";
+            outputBox.textContent = steps[stepIndex] + dotText;
+        }, 450);
+
+        const stepTimer = setInterval(() => {
+            if (stepIndex < steps.length - 1) {
+                stepIndex++;
+            }
+        }, 1400);
+
+        try {
+            const response = await fetch(API_URL, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + token
+                },
+                body: JSON.stringify({
+                    prompt: prompt
+                })
+            });
+
+            const responseText = await response.text();
+
+            clearInterval(progressTimer);
+            clearInterval(stepTimer);
+
+            if (!response.ok) {
+                showMessage(
+                    "HTTP " + response.status + "\n\n" + responseText,
+                    true
+                );
+                return;
+            }
+
+            showMessage(responseText, false);
+
+        } catch (error) {
+            clearInterval(progressTimer);
+            clearInterval(stepTimer);
+
+            showMessage(
+                "Server connection failed.\n\n" + error.message,
+                true
+            );
+
+        } finally {
+            sendButton.disabled = false;
+        }
+    }
+
+    sendButton.addEventListener("click", sendAiRequest);
+</script>
+
+</body>
+</html>
